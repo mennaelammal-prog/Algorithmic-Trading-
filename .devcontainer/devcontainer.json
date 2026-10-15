@@ -1,0 +1,25 @@
+{
+    "name": "Algo Trading Lab",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/bin/python"
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-toolsai.jupyter",
+                "njpwerner.autodocstring"
+            ]
+        }
+    },
+    // Mount the current folder into the container
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/jovyan/work,type=bind",
+    "workspaceFolder": "/home/jovyan/work",
+    
+    // Run as the jovyan user (standard for Jupyter images)
+    "remoteUser": "jovyan"
+}
