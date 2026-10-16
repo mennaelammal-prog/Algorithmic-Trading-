@@ -1,6 +1,12 @@
-black
+﻿black
 flake8
 mypy
 lumibot
 vectorbt
+# Pinned below 6.x: vectorbt's bundled Plotly theme still references the
+# "scattermapbox" trace type, which newer Plotly releases (6.x/7.x) removed
+# in favor of "scattermap". Without this pin, pip installs the newest Plotly
+# and `import vectorbt` crashes with
+# "Invalid property specified ... 'scattermapbox'". See data/README.md.
+plotly<6
 kaleido

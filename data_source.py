@@ -1,12 +1,12 @@
-"""
-Drop-in replacement for `vbt.YFData.download(...).get('Close')` that works
+﻿"""
+Drop-in replacement for `vbt.YFData.download(...).get(''Close'')` that works
 without live internet access to Yahoo Finance.
 
 Why this exists
 ----------------
 The original template pulls prices straight from Yahoo Finance at research
 time (`vbt.YFData.download`) and at backtest time (`YahooDataBacktesting`).
-That's fine on a normal machine, but it fails anywhere Yahoo's endpoints are
+That''s fine on a normal machine, but it fails anywhere Yahoo''s endpoints are
 network-blocked (locked-down sandboxes, restrictive corporate proxies, CI
 runners, etc.) with connection errors rather than a clean message.
 
@@ -15,7 +15,7 @@ in notebooks/examples.ipynb:
 
     # before
     data = vbt.YFData.download(symbols, start=start_date, end=end_date)
-    price = data.get('Close')
+    price = data.get(''Close'')
 
     # after
     from data_source import load_prices
@@ -25,8 +25,8 @@ Resolution order per symbol
 ----------------------------
 1. data/<SYMBOL>.csv   -- a local CSV you provide (see data/README.md for
    the expected columns and where to export one from).
-2. Yahoo Finance, via vectorbt -- only attempted if the CSV isn't present,
-   and only works where Yahoo's endpoints are actually reachable.
+2. Yahoo Finance, via vectorbt -- only attempted if the CSV isn''t present,
+   and only works where Yahoo''s endpoints are actually reachable.
 
 Mixing is fine: keep SPY.csv locally and let the rest come from Yahoo, etc.
 """
@@ -41,7 +41,7 @@ import pandas as pd
 DATA_DIR = Path(__file__).parent / "data"
 
 # Accept the column header spellings used by the common export sources
-# (Yahoo's own "Download" button, Stooq, most broker exports).
+# (Yahoo''s own "Download" button, Stooq, most broker exports).
 _CLOSE_COLUMN_CANDIDATES = ["Close", "close", "Adj Close", "adj_close", "CLOSE"]
 _DATE_COLUMN_CANDIDATES = ["Date", "date", "DATE", "Datetime", "timestamp"]
 
@@ -57,15 +57,32 @@ def _read_local_csv(symbol: str) -> pd.Series | None:
     close_col = next((c for c in _CLOSE_COLUMN_CANDIDATES if c in df.columns), None)
     if date_col is None or close_col is None:
         raise ValueError(
-            f"data/{symbol}.csv doesn't look like a price export "
+            f"data/{symbol}.csv doesn''t look like a price export "
             f"(found columns: {list(df.columns)}). "
-            f"Expected a '{_DATE_COLUMN_CANDIDATES[0]}' and a "
-            f"'{_CLOSE_COLUMN_CANDIDATES[0]}' column -- see data/README.md."
+            f"Expected a ''{_DATE_COLUMN_CANDIDATES[0]}'' and a "
+            f"''{_CLOSE_COLUMN_CANDIDATES[0]}'' column -- see data/README.md."
         )
 
     df[date_col] = pd.to_datetime(df[date_col])
     series = df.set_index(date_col)[close_col].sort_index()
     series.name = symbol
+    return _to_naive(series)
+
+
+def _to_naive(series: pd.Series) -> pd.Series:
+    """
+    Strip timezone info from a series'' DatetimeIndex, if any.
+
+    Local CSVs are naive already, but Yahoo Finance (via vectorbt) returns a
+    UTC-aware index. Mixing the two -- or comparing either against the plain
+    `pd.Timestamp(start)`/`pd.Timestamp(end)` used for date-range filtering
+    below -- raises "Invalid comparison between dtype=datetime64[ns, UTC]
+    and Timestamp". Normalizing everything to naive here keeps both sources
+    comparable regardless of which symbols come from which source.
+    """
+    if isinstance(series.index, pd.DatetimeIndex) and series.index.tz is not None:
+        series = series.copy()
+        series.index = series.index.tz_localize(None)
     return series
 
 
@@ -97,7 +114,7 @@ def load_prices(symbols: list[str], start: str, end: str) -> pd.DataFrame:
             if isinstance(remote, pd.Series):
                 remote = remote.to_frame(name=missing[0])
             for symbol in missing:
-                remote_hits[symbol] = remote[symbol]
+                remote_hits[symbol] = _to_naive(remote[symbol])
         except Exception as exc:
             found = ", ".join(sorted(local_hits)) or "none"
             raise RuntimeError(
